@@ -1,157 +1,164 @@
 package com.example.voiceassistantaiapp;
+import android.widget.Toast;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Button;
+import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.os.Bundle;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
-import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
-import java.util.ArrayList;
-import android.content.Intent;
-import android.widget.TextView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.annotation.NonNull;
 import android.util.Log;
 
 
 
+import androidx.appcompat.app.AppCompatActivity;
+
 public class MainActivity extends AppCompatActivity {
 
-    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
-    private SpeechRecognizer speechRecognizer;
-    private static final String TAG = "startListening";
+    private static final int PERMISSION_REQUEST_RECORD_AUDIO = 1;
+
+    private TextView listeningStateTextView;
+    private TextView notListeningStateTextView;
+    private TextView wakeWordDetectedTextView;
+    private TextView recognizedSpeechTextView;
+
+    private Button startServiceButton;
+    private Button stopServiceButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
-        } else {
-            startListening();
-        }
-    }
+        // Initialize TextViews
+        listeningStateTextView = findViewById(R.id.listeningStateTextView);
+        notListeningStateTextView = findViewById(R.id.notListeningStateTextView);
+        wakeWordDetectedTextView = findViewById(R.id.wakeWordDetectedTextView);
+        recognizedSpeechTextView = findViewById(R.id.recognizedSpeechTextView);
+        // Initialize Buttons
+        startServiceButton = findViewById(R.id.startServiceButton);
+        stopServiceButton = findViewById(R.id.stopServiceButton);
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startListening();
-            } else {
-                Toast.makeText(this, "Permission denied to record audio", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void startListening() {
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+        // Set onClickListener for startServiceButton
+        startServiceButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onReadyForSpeech(Bundle params) {
-                // Called when the recognizer is ready to start listening,
-                // Can perform any specific action when the recogniser is ready
-                Toast.makeText(MainActivity.this, "Speech recognition is ready. You can start speaking.", Toast.LENGTH_SHORT).show();
-            }
+            public void onClick(View v) {
+                if (checkPermission()) {
+                    // Start the service when startServiceButton is clicked
+                    // Hide previous state TextViews
+                    listeningStateTextView.setVisibility(View.GONE);
+                    notListeningStateTextView.setVisibility(View.GONE);
+                    wakeWordDetectedTextView.setVisibility(View.GONE);
 
-
-            @Override
-            public void onBeginningOfSpeech() {
-                // Called when the user starts to speak
-                Toast.makeText(MainActivity.this, "Listening...", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onRmsChanged(float rmsdB) {
-                // Called when the RMS value of the audio being processed changes
-            }
-
-            @Override
-            public void onBufferReceived(byte[] buffer) {
-                // Called after the user stops speaking, and the recogniser is processing the audio
-                Toast.makeText(MainActivity.this, "Processing...", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onEndOfSpeech() {
-                // Called when the user finishes speaking
-                Toast.makeText(MainActivity.this, "Stopping listening.", Toast.LENGTH_SHORT).show();
-                startListening();
-            }
-
-            @Override
-            public void onError(int error) {
-                // Called when an error occurs during recognition
-                String errorMessage;
-                switch (error) {
-                    case SpeechRecognizer.ERROR_AUDIO:
-                        errorMessage = "Audio recording error";
-                        break;
-                    case SpeechRecognizer.ERROR_CLIENT:
-                        errorMessage = "Client side error";
-                        break;
-                    case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                        errorMessage = "Insufficient permissions";
-                        break;
-                    case SpeechRecognizer.ERROR_NO_MATCH:
-                        errorMessage = "No recognition result matched";
-                        break;
-                    case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                        errorMessage = "RecognitionService busy";
-                        break;
-                    case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                        errorMessage = "No speech input";
-                        break;
-                    default:
-                        errorMessage = "Unknown error";
-                        break;
+                    startListening();
+                } else {
+                    requestPermission();
                 }
-                Log.e(TAG, "Recognition error: " + errorMessage);
-                // Handle error correctly displaying an error message
-            }
-
-            @Override
-            public void onResults(Bundle results) {
-                // Called when recognition results are available,
-                // handling the recognition results and taking specific actions
-                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    String recognizedText = matches.get(0); // Get the first recognition result
-                    TextView textView = findViewById(R.id.recognizedText);
-                    textView.setText("Recognized Text: " + recognizedText); // Update TextView with recognised text
-                    for (String result : matches) {
-                        if (result.equalsIgnoreCase("test")) {
-                            // Wake up word detected, perform action display message.
-                            Toast.makeText(MainActivity.this, "Wake up word detected!", Toast.LENGTH_SHORT).show();
-                            break; // Exit loop after detecting the wake up word
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onPartialResults(Bundle partialResults) {
-                // Called when partial recognition results are available
-            }
-
-            @Override
-            public void onEvent(int eventType, Bundle params) {
-                // Called when events related to the recognition are available
             }
         });
 
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-        speechRecognizer.startListening(intent);
+        // Set onClickListener for stopServiceButton
+        stopServiceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Hide previous state TextViews
+                listeningStateTextView.setVisibility(View.GONE);
+                notListeningStateTextView.setVisibility(View.GONE);
+                wakeWordDetectedTextView.setVisibility(View.GONE);
+                // Stop the service when stopServiceButton is clicked
+                stopListening();
+            }
+        });
+
+        // Register BroadcastReceiver to receive UI update messages from VoiceRecognitionService
+        registerReceiver(uiUpdateReceiver, new IntentFilter("UPDATE_RECOGNIZED_SPEECH"), Context.RECEIVER_NOT_EXPORTED);
+    }
+
+    private boolean checkPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSION_REQUEST_RECORD_AUDIO);
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, start listening
+                startListening();
+            } else {
+                // Permission denied, show a message or handle accordingly
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (speechRecognizer != null) {
-            speechRecognizer.stopListening();
-            speechRecognizer.destroy();
+        // Unregister BroadcastReceiver
+        unregisterReceiver(uiUpdateReceiver);
+    }
+
+    private BroadcastReceiver uiUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d("BroadcastReceiver", "Received broadcast: " + intent.getAction());
+            switch (intent.getAction()) {
+                case "UPDATE_RECOGNIZED_SPEECH":
+                    String recognizedSpeech = intent.getStringExtra("recognizedSpeech");
+                    if (recognizedSpeech != null) {
+                        recognizedSpeechTextView.setVisibility(View.VISIBLE);
+                        recognizedSpeechTextView.setText(recognizedSpeech);
+                    }
+                    break;
+                case "UPDATE_UI_LISTENING_STATE":
+                    // Assuming you send such intents from the service
+                    boolean isListening = intent.getBooleanExtra("isListening", false);
+                    listeningStateTextView.setVisibility(isListening ? View.VISIBLE : View.GONE);
+                    notListeningStateTextView.setVisibility(isListening ? View.GONE : View.VISIBLE);
+                    break;
+                case "UPDATE_UI_WAKE_WORD_DETECTED":
+                    // Assuming you send such intents from the service
+                    boolean isWakeWordDetected = intent.getBooleanExtra("isWakeWordDetected", false);
+                    wakeWordDetectedTextView.setVisibility(isWakeWordDetected ? View.VISIBLE : View.GONE);
+                    break;
+            }
         }
+    };
+    private void startListening() {
+        // Start the VoiceRecognitionService to begin listening for the wake word detection
+        Intent serviceIntent = new Intent(this, VoiceRecognitionService.class);
+        startService(serviceIntent);
+        listeningStateTextView.setVisibility(View.VISIBLE);
+    }
+
+    private void stopListening() {
+        // Stop the VoiceRecognitionService to stop listening for the wake word detection
+        Intent serviceIntent = new Intent(this, VoiceRecognitionService.class);
+        stopService(serviceIntent);
+        notListeningStateTextView.setVisibility(View.VISIBLE);
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("UPDATE_RECOGNIZED_SPEECH");
+        filter.addAction("UPDATE_UI_LISTENING_STATE");
+        filter.addAction("UPDATE_UI_WAKE_WORD_DETECTED");
+        registerReceiver(uiUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(uiUpdateReceiver);
     }
 }
