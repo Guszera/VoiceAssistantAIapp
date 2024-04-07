@@ -1,63 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:padding="16dp"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/startServiceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start Service"
-        android:layout_below="@id/notListeningStateTextView"
-        android:layout_marginTop="16dp"
-        android:layout_centerHorizontal="true"/>
-
-    <Button
-        android:id="@+id/stopServiceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stop Service"
-        android:layout_below="@id/startServiceButton"
-        android:layout_marginTop="16dp"
-        android:layout_centerHorizontal="true"/>
-
+    <!-- Display recognized text -->
     <TextView
-        android:id="@+id/listeningStateTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Listening..."
-        android:visibility="gone"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:id="@+id/notListeningStateTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Not Listening"
-        android:visibility="gone"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:id="@+id/wakeWordDetectedTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Wake Word Detected!"
-        android:visibility="gone"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:id="@+id/recognizedSpeechTextView"
+        android:id="@+id/recognizedTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
-        android:gravity="center"
         android:textSize="18sp"
-        android:visibility="gone" />
+        android:textColor="#000"
+        android:background="#E0E0E0"
+        android:padding="16dp"
+        android:text="Recognized text will appear here"
+        android:layout_marginBottom="20dp"/>
 
-</RelativeLayout>
+    <!-- Start service button -->
+    <Button
+        android:id="@+id/startServiceButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start Listening"
+        android:layout_marginBottom="10dp"/>
+
+    <!-- Stop service button -->
+    <Button
+        android:id="@+id/stopServiceButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stop Listening"/>
+
+
+</LinearLayout>

@@ -1,164 +1,139 @@
 package com.example.voiceassistantaiapp;
-import android.widget.Toast;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.TextView;
-import android.widget.Button;
-import android.content.Intent;
+
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
-import android.Manifest;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.annotation.NonNull;
-import android.util.Log;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
-
-
-import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int PERMISSION_REQUEST_RECORD_AUDIO = 1;
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
 
-    private TextView listeningStateTextView;
-    private TextView notListeningStateTextView;
-    private TextView wakeWordDetectedTextView;
-    private TextView recognizedSpeechTextView;
-
-    private Button startServiceButton;
-    private Button stopServiceButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialize TextViews
-        listeningStateTextView = findViewById(R.id.listeningStateTextView);
-        notListeningStateTextView = findViewById(R.id.notListeningStateTextView);
-        wakeWordDetectedTextView = findViewById(R.id.wakeWordDetectedTextView);
-        recognizedSpeechTextView = findViewById(R.id.recognizedSpeechTextView);
-        // Initialize Buttons
-        startServiceButton = findViewById(R.id.startServiceButton);
-        stopServiceButton = findViewById(R.id.stopServiceButton);
-
-        // Set onClickListener for startServiceButton
-        startServiceButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (checkPermission()) {
-                    // Start the service when startServiceButton is clicked
-                    // Hide previous state TextViews
-                    listeningStateTextView.setVisibility(View.GONE);
-                    notListeningStateTextView.setVisibility(View.GONE);
-                    wakeWordDetectedTextView.setVisibility(View.GONE);
-
-                    startListening();
-                } else {
-                    requestPermission();
-                }
-            }
-        });
-
-        // Set onClickListener for stopServiceButton
-        stopServiceButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Hide previous state TextViews
-                listeningStateTextView.setVisibility(View.GONE);
-                notListeningStateTextView.setVisibility(View.GONE);
-                wakeWordDetectedTextView.setVisibility(View.GONE);
-                // Stop the service when stopServiceButton is clicked
-                stopListening();
-            }
-        });
-
-        // Register BroadcastReceiver to receive UI update messages from VoiceRecognitionService
-        registerReceiver(uiUpdateReceiver, new IntentFilter("UPDATE_RECOGNIZED_SPEECH"), Context.RECEIVER_NOT_EXPORTED);
+        // Check if we have record audio permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted, request it
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO_PERMISSION);
+        }
+        setupServiceButtons();
     }
 
-    private boolean checkPermission() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-    }
+    private void setupServiceButtons() {
+        Button startServiceButton = findViewById(R.id.startServiceButton);
+        startServiceButton.setOnClickListener(v -> {
+            Intent serviceIntent = new Intent(MainActivity.this, VoiceRecognitionService.class);
+            startService(serviceIntent);
+        });
 
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSION_REQUEST_RECORD_AUDIO);
+        Button stopServiceButton = findViewById(R.id.stopServiceButton);
+        stopServiceButton.setOnClickListener(v -> {
+            Intent serviceIntent = new Intent(MainActivity.this, VoiceRecognitionService.class);
+            stopService(serviceIntent);
+        });
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, start listening
-                startListening();
+                // Permission was granted
             } else {
-                // Permission denied, show a message or handle accordingly
-                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+                // Permission was denied or request was cancelled
             }
         }
     }
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // Unregister BroadcastReceiver
-        unregisterReceiver(uiUpdateReceiver);
-    }
-
-    private BroadcastReceiver uiUpdateReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver speechReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d("BroadcastReceiver", "Received broadcast: " + intent.getAction());
-            switch (intent.getAction()) {
-                case "UPDATE_RECOGNIZED_SPEECH":
-                    String recognizedSpeech = intent.getStringExtra("recognizedSpeech");
-                    if (recognizedSpeech != null) {
-                        recognizedSpeechTextView.setVisibility(View.VISIBLE);
-                        recognizedSpeechTextView.setText(recognizedSpeech);
-                    }
-                    break;
-                case "UPDATE_UI_LISTENING_STATE":
-                    // Assuming you send such intents from the service
-                    boolean isListening = intent.getBooleanExtra("isListening", false);
-                    listeningStateTextView.setVisibility(isListening ? View.VISIBLE : View.GONE);
-                    notListeningStateTextView.setVisibility(isListening ? View.GONE : View.VISIBLE);
-                    break;
-                case "UPDATE_UI_WAKE_WORD_DETECTED":
-                    // Assuming you send such intents from the service
-                    boolean isWakeWordDetected = intent.getBooleanExtra("isWakeWordDetected", false);
-                    wakeWordDetectedTextView.setVisibility(isWakeWordDetected ? View.VISIBLE : View.GONE);
-                    break;
+            if ("ACTION_RECOGNIZED_TEXT".equals(intent.getAction())) {
+                final String recognizedText = intent.getStringExtra("recognizedText");
+                runOnUiThread(() -> {
+                    TextView recognizedTextView = findViewById(R.id.recognizedTextView);
+                    recognizedTextView.setText(recognizedText);
+                    handleCommand(intent); // Handle specific commands
+                });
             }
         }
     };
-    private void startListening() {
-        // Start the VoiceRecognitionService to begin listening for the wake word detection
-        Intent serviceIntent = new Intent(this, VoiceRecognitionService.class);
-        startService(serviceIntent);
-        listeningStateTextView.setVisibility(View.VISIBLE);
-    }
 
-    private void stopListening() {
-        // Stop the VoiceRecognitionService to stop listening for the wake word detection
-        Intent serviceIntent = new Intent(this, VoiceRecognitionService.class);
-        stopService(serviceIntent);
-        notListeningStateTextView.setVisibility(View.VISIBLE);
+    private void handleCommand(Intent intent) {
+        if (intent.hasExtra("command")) {
+            String command = intent.getStringExtra("command");
+            switch (command) {
+                case "openSettings":
+                    startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
+                    break;
+                case "tellTime":
+                    SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                    String currentTime = "The current time is " + sdf.format(new Date());
+                    TextView recognizedTextView = findViewById(R.id.recognizedTextView);
+                    recognizedTextView.setText(currentTime);
+                    break;
+                case "findPetrolStation":
+                    // Attempt to open Waze and search for the nearest petrol station
+                    try {
+                        // Use the Waze URI to perform a search. You might need to adjust the query.
+                        String uri = "https://waze.com/ul?q=petrol%20station";
+                        Intent wazeIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+                        wazeIntent.setPackage("com.waze"); // Optional: Ensure Waze app handles it
+                        startActivity(wazeIntent);
+                    } catch (ActivityNotFoundException e) {
+                        // Waze app not installed, optionally prompt the user to install it
+                        Toast.makeText(MainActivity.this, "Waze is not installed", Toast.LENGTH_SHORT).show();
+                    }
+                    break;
+                // Add more cases for other commands
+            }
+        }
     }
+    @SuppressLint({"InlinedApi", "UnspecifiedRegisterReceiverFlag"})
     @Override
     protected void onResume() {
         super.onResume();
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("UPDATE_RECOGNIZED_SPEECH");
-        filter.addAction("UPDATE_UI_LISTENING_STATE");
-        filter.addAction("UPDATE_UI_WAKE_WORD_DETECTED");
-        registerReceiver(uiUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        IntentFilter filter = new IntentFilter("ACTION_RECOGNIZED_TEXT");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Corrected call for Android 12 and above
+            registerReceiver(speechReceiver, filter, null, null, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            // Fallback for earlier Android versions
+            registerReceiver(speechReceiver, filter);
+        }
+        Log.d("MainActivity", "Receiver registered");
     }
+
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(uiUpdateReceiver);
+        unregisterReceiver(speechReceiver);
+        Log.d("MainActivity", "Receiver unregistered");
     }
 }
